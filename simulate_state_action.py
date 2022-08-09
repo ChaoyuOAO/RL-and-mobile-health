@@ -1,6 +1,6 @@
 import numpy as np
 
-def simu1d(T,An,Rp=2,rng = np.random.default_rng(1)):
+def simu1d(T,An,Rp=2):
     # simulating states for one patient
     # Arguements:
     # T: total time points 
@@ -18,7 +18,7 @@ def simu1d(T,An,Rp=2,rng = np.random.default_rng(1)):
     return Si
 
 
-def simu2d(n,T,p=.5,Rp=2):
+def simu2d(n,T,p=.5,Rp=2,ranseed = 1):
     # Simulating states and actions for n patients over T time points
     # Arguements:
     # n: number of patients
@@ -27,7 +27,7 @@ def simu2d(n,T,p=.5,Rp=2):
     # Output: a tuple for a n*Rp*T array (patient #, state #, time point) for states 
     #         a n*T matrix for actions
 
-    np.random.seed(1)
+    np.random.seed(ranseed)
     AT_n = np.random.binomial(1,p,(n,T-1))       # n*(T-1) matrix
     S_matrix = np.zeros((n,Rp,T))                # initialize a matrix for states
     for i in range(n):
