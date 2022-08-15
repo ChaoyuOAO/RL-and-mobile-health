@@ -47,18 +47,24 @@ def est_util(S_matrix, A):
             UT_n[i,j] = 2*S_matrix[i,0,j+1]+S_matrix[i,1,j+1]-(1/4)*(2*A[i,j]-1)
     return UT_n
 
+def stable_simu(T,n):
+    S_matrix0,An0 = simu2d(n,50+T)
+    S_matrix = S_matrix0[:,:,50:]
+    An = An0[:,50:]
+    return S_matrix,An
+
 ## simulate table 
 ## n=25
 ## n=25, T=24
-n25_T24 = simu2d(25,24)
+n25_T24 = stable_simu(25,24)
 st_2524, act_2524 = n25_T24
 util_2524 = est_util(st_2524,act_2524)
 ## n=25, T=36
-n25_T36 = simu2d(25,36)
+n25_T36 = stable_simu(25,36)
 st_2536, act_2536 = n25_T36
 util_2536 = est_util(st_2536,act_2536)
 ## n=25,T=48
-n25_T48 = simu2d(25,48)
+n25_T48 = stable_simu(25,48)
 st_2548, act_2548 = n25_T48
 util_2548 = est_util(st_2548,act_2548)
 
