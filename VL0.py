@@ -74,13 +74,12 @@ def get_M(vf,gamma=0.1):
         M: gamma*psi(t)Xpsi(t+1)-psi(t)Xpsi(t), n*nV*nV
     '''
     n,T,nV = vf.shape
-    M0 = np.zeros((n,nV,nV))
+    M0 = np.zeros((n,T-1,nV,nV))
     for i in range(n):
         for t in range(T-1):
             outer_it = gamma * np.outer(vf[i][t], vf[i][t+1])-np.outer(vf[i][t], vf[i][t]) 
-            # sum_T M_i,t
-            M0[i] = M0[i]+outer_it
-            # sum_n sum_T M_i,t
+            # sM_i,t
+            M0[i][t] = outer_it
     return M0
 
 
