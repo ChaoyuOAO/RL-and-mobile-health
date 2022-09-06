@@ -127,29 +127,3 @@ def thetaPi_obj0(beta, policy, M_list, A_list, S_list, R_list, fv_list, Mu_list,
 
 def obj_func(Lambda,theta,l):
     return np.dot(Lambda.T,Lambda)+l*np.dot(theta.T,theta)
-
-def value_func(fv_list,theta):
-    '''
-    Input:
-        fv_list: value features (psi): n*T*nV
-        theta: parameters for value: nV
-    Output:
-        value function: n*T
-    '''
-
-start11 = simu.multi_start(25,1,1,24)
-s11, a11 = start11
-util_11 = simu.est_util(s11,a11)
-a11hot = a1hot(a11,2)
-# set beta to be 0
-beta11 = np.array([0.5,-0.2,-0.1,0.6]).reshape((2,2))
-pi11 = pi_sbeta(s11,beta11)
-vf11 = Vfeatures(s11)
-print(vf11.shape)
-M11 = get_M(vf11)
-Mu11 = np.array([0.5]*23*25).reshape(25,23)
-sum1,sum2 = LAMBDA_components(beta11,policy,M11,a11hot,s11,util_11,vf11,Mu11,0.01)
-ll = LAMBDA(sum1,sum2,np.array([1,2,3]),25)
-theta_obj1 = thetaPi_obj0(beta11,policy,M11,a11hot,s11,util_11,vf11,Mu11,0.01)
-print(theta_obj1)
-print(obj_func(ll,np.array([-0.00223447,0.00824631,0.00452626]),0.01))
