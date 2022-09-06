@@ -83,46 +83,35 @@ def get_M(vf,gamma=0.1):
     return M0
 
 
-def LAMBDA_components(beta, policy, M_list, A_list, S_list,R_list, vf_list, Mu_list, eps=0.01):
-  '''
-  Input:
-    beta: nA*nS vector
-    policy: nS*nA matrix: pi(ai|si) (only for the action chosen at time t)
-    M_list: n*nV*nV: psi(t)Xpsi(t)-gamma*psi(t)Xpsi(t+1)
-    A_list: n*T*nA: action matrix list (one-hot encoding)
-    R_list: n*T: utility list
-    vf_list: n*T*nV: value feature list
-    Mu_list: n*T*nS: known randomization probability
-  ------------------------------------------
-  Output:
-    sum_w_M : sum_T pi/mu * Mt (nV x nV-size array) 
-    sum_w_RS : sum_t pi/mu reward * psi(t) (nV-size array)
-  '''
-  n,T,_ = A_list.shape
-  nV = vf_list.shape[2]
-  sum_w_RS = np.zeros(nV) 
-  sum_w_M = np.zeros((nV,nV))
-  for i in range(n):
-    w = policy(A_list,S_list,beta,eps)[i]/Mu_list[i]
-    ## pi/mu for each time
-    sum_w_RS += np.sum(np.multiply(np.multiply(w, R_list[i]).reshape(T,1),vf_list[i][:-1,:]), axis=0)
-    sum_w_M += np.sum(np.multiply(M_list[i], w.reshape(T,1,1)), axis=0)
-  return sum_w_M, sum_w_RS
-
-def LAMBDA(sum_w_M,sum_w_RS,theta,n):
+def LAMBDA(beta, theta, policy, M_list, A_list, S_list,R_list, vf_list, Mu_list, eps=0.01,l=0.05):
     '''
-    LAMBDA value
+    Input:
+        beta: nA*nS vector
+        policy: nS*nA matrix: pi(ai|si) (only for the action chosen at time t)
+        M_list: n*T*nV*nV: psi(t)Xpsi(t)-gamma*psi(t)Xpsi(t+1)
+        A_list: n*T*nA: action matrix list (one-hot encoding)
+        R_list: n*T: utility list
+        vf_list: n*T*nV: value feature list
+        Mu_list: n*T*nS: known randomization probability
+    ------------------------------------------
+    Output:
+        sum_w_M : sum_T pi/mu * Mt (nV x nV-size array) 
+        sum_w_RS : sum_t pi/mu reward * psi(t) (nV-size array)
     '''
-    return np.dot(sum_w_M/n,theta)+sum_w_RS/n
+    n,T,_ = A_list.shape
+    nV = vf_list.shape[2]
+    sum_w_RS = np.zeros(nV) 
+    sum_w_M = np.zeros((nV,nV))
+    for i in range(n):
+        w = policy(A_list,S_list,beta,eps)[i]/Mu_list[i]
+        ## pi/mu for each time
+        sum_w_RS += np.sum(np.multiply(np.multiply(w, R_list[i]).reshape(T,1),vf_list[i][:-1,:]), axis=0)
+        sum_w_M += np.sum(np.multiply(M_list[i], w.reshape(T,1,1)), axis=0)
+    L = np.dot(sum_w_M/n,theta)+sum_w_RS/n
+    return np.dot(L.T,L)+l*np.dot(theta.T,theta)
 
-def thetaPi_obj0(beta, policy, M_list, A_list, S_list, R_list, fv_list, Mu_list,eps=0.01):  
-  '''
-  Estimate of theta: min(LAMBDA+lambda*theta)
-  '''
-  sum_w_M, sum_w_RS = LAMBDA_components(beta, policy,M_list, A_list, S_list,R_list, fv_list, Mu_list,eps)
-  nV = len(sum_w_RS)
-  LU = la.lu_factor(sum_w_M + 0.01*np.eye(nV)) 
-  return la.lu_solve(LU, -sum_w_RS)
-
-def obj_func(Lambda,theta,l):
-    return np.dot(Lambda.T,Lambda)+l*np.dot(theta.T,theta)
+def theta_opt(beta, theta0,policy, M_list, A_list, S_list, R_list, vf_list, Mu_list,eps=0.01,l=0.05):
+    objective = lambda theta: LAMBDA(beta, theta, policy, M_list, A_list, S_list,R_list, vf_list, Mu_list, eps,l)
+    opt = optim.minimize(objective, x0=theta0, method='BFGS')  
+    return opt.x
+    
