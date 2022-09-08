@@ -2,7 +2,8 @@ import numpy as np
 import scipy.optimize as optim
 import numpy as np
 import simulation as simu
-import VL0 as VL
+import VL
+import scipy.linalg as la
 import matplotlib.pyplot as plt
 
 
