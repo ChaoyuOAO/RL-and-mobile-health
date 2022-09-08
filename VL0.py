@@ -114,4 +114,18 @@ def theta_opt(beta, theta0,policy, M_list, A_list, S_list, R_list, vf_list, Mu_l
     objective = lambda theta: LAMBDA(beta, theta, policy, M_list, A_list, S_list,R_list, vf_list, Mu_list, eps,l)
     opt = optim.minimize(objective, x0=theta0, method='BFGS')  
     return opt.x
-    
+
+def value_func(fv_list,theta):
+    '''
+    Input:
+        fv_list: value features (psi): n*T*nV
+        theta: parameters for value: nV
+    -----------------------------------------------
+    Output:
+        value function: n*T
+    '''
+    n,T,_ = fv_list.shape
+    v_list = np.zeros((n,T))
+    for i in range(n):
+        v_list[i] = np.dot(fv_list[i],theta)
+    return v_list
