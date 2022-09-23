@@ -18,22 +18,22 @@ def a1hot(a,nA):
 def pi_sbeta(s,beta):
     '''
     Input:
-        s: n*T*nS matrix for one patient
-        beta: nA*nS matrix: one row for one action under each state
+        s: n*T*nS matrix for all patients
+        (binary)beta: 1*nS matrix: one row for one action under each state// (nA-1)*nS
     -------------------------------------------------------
     Output: 
-        pi features: n*T*nA
+        pi features: n*(T-1)*nA
     '''
     n,T,_ = s.shape
     nA = beta.shape[0]
-    pif = np.zeros((n,T,nA))
+    pif = np.zeros((n,T-1,nA))
     for i in range(n):
-        k = np.dot(s[i],beta.T)
+        k = np.vstack((np.dot(s[i][:-1],beta.T),np.zeros(T-1))).T
         expk = np.exp(k)
         pif[i] = expk/expk.sum(axis=1)[:,None]
     return pif
 
-def policy(a_1hot,s,beta,eps=0.01):
+def policy(a_1hot,s,beta,eps=0):
     '''
     Input:
     a_1hot: one-hot encoding for action matrix: n*(T-1)*nA
@@ -42,13 +42,14 @@ def policy(a_1hot,s,beta,eps=0.01):
     eps: epsilon greedy algorithm
     -------------------------------------------------------------
     Output:
+    Policy probability of Action chosen n*(T-1)
 
     '''
     pi_list = pi_sbeta(s,beta)
     n,T,nA = pi_list.shape
-    p_a = np.zeros((n,T-1))
+    p_a = np.zeros((n,T))
     for i in range(n):
-        p_a[i] = np.diag(np.dot(a_1hot[i,:,:],pi_list[i,:-1,:].T))
+        p_a[i] = np.diag(np.dot(a_1hot[i,:,:],pi_list[i,:,:].T))
     return p_a*(1-eps)+eps/nA
 
 def Vfeatures(s,method="linear"):
@@ -64,7 +65,7 @@ def Vfeatures(s,method="linear"):
     if method == "linear":
         return np.concatenate((np.ones((n,T,1)),s),axis=2)
     
-def get_M(vf,gamma=0.1):
+def get_M(vf,gamma=0.9):
     '''
     Input: 
         vf: value features (psi), n*T*nV 
@@ -83,7 +84,7 @@ def get_M(vf,gamma=0.1):
     return M0
 
 
-def LAMBDA(beta, theta, policy, M_list, A_list, S_list,R_list, vf_list, Mu_list, eps=0.01,l=0.05):
+def obj_func(beta, theta, policy, M_list, A_list, S_list,R_list, vf_list, Mu_list, eps=0,l=0.05):
     '''
     Input:
         beta: nA*nS vector
@@ -94,10 +95,13 @@ def LAMBDA(beta, theta, policy, M_list, A_list, S_list,R_list, vf_list, Mu_list,
         vf_list: n*T*nV: value feature list
         Mu_list: n*T*nS: known randomization probability
     ------------------------------------------
-    Output:
         sum_w_M : sum_T pi/mu * Mt (nV x nV-size array) 
         sum_w_RS : sum_t pi/mu reward * psi(t) (nV-size array)
+    --------------------------------------------
+    Output:
+        objective function in R
     '''
+    beta = beta.reshape((2,))
     n,T,_ = A_list.shape
     nV = vf_list.shape[2]
     sum_w_RS = np.zeros(nV) 
@@ -110,22 +114,37 @@ def LAMBDA(beta, theta, policy, M_list, A_list, S_list,R_list, vf_list, Mu_list,
     L = np.dot(sum_w_M/n,theta)+sum_w_RS/n
     return np.dot(L.T,L)+l*np.dot(theta.T,theta)
 
-def theta_opt(beta, theta0,policy, M_list, A_list, S_list, R_list, vf_list, Mu_list,eps=0.01,l=0.05):
-    objective = lambda theta: LAMBDA(beta, theta, policy, M_list, A_list, S_list,R_list, vf_list, Mu_list, eps,l)
+def theta_opt(beta, theta0,policy, M_list, A_list, S_list, R_list, vf_list, Mu_list,eps=0,l=0.05):
+    beta = beta.reshape((2,))
+    objective = lambda theta: obj_func(beta, theta, policy, M_list, A_list, S_list,R_list, vf_list, Mu_list, eps,l)
     opt = optim.minimize(objective, x0=theta0, method='BFGS')  
     return opt.x
 
-def value_func(fv_list,theta):
+
+def Vpi(beta,theta0, policy, M_list, A_list, S_list, R_list, vf_list, Mu_list,eps=0,l=0.05):
     '''
     Input:
         fv_list: value features (psi): n*T*nV
         theta: parameters for value: nV
-    -----------------------------------------------
     Output:
         value function: n*T
     '''
-    n,T,_ = fv_list.shape
+    print(beta)
+    beta = beta.reshape((2,))
+    theta_hat = theta_opt(beta, theta0, policy, M_list, A_list, S_list, R_list, vf_list, Mu_list,eps,l)
+    print(theta_hat)
+    n,T,_ = vf_list.shape
     v_list = np.zeros((n,T))
     for i in range(n):
-        v_list[i] = np.dot(fv_list[i],theta)
-    return v_list
+        v_list[i] = np.dot(vf_list[i],theta_hat)
+    return -np.mean(v_list)
+
+def beta_opt(beta0,theta0, policy, M_list, A_list, S_list,R_list, vf_list, Mu_list, eps=0,l=0.05):
+    '''
+    Optimizes policy value over class of softmax policies indexed by beta. 
+    Dictionary {'betaHat':estimate of beta, 'thetaHat':estimate of theta, 'objective':objective function (of policy parameters)}
+    '''
+    objective = lambda beta: Vpi(beta, theta0, policy, M_list, A_list, S_list, R_list, vf_list, Mu_list,eps,l)
+    betaOpt = optim.minimize(objective, x0=beta0, method='BFGS')
+    thetaOpt = theta_opt(betaOpt.x,theta0, policy, M_list, A_list, S_list, R_list, vf_list, Mu_list,eps,l)
+    return {'betaHat':betaOpt.x, 'thetaHat':thetaOpt}
