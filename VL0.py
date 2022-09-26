@@ -112,16 +112,21 @@ def obj_func(beta, policy, M_list, A_list, S_list,R_list, vf_list, Mu_list, eps=
         sum_w_RS += np.sum(np.multiply(np.multiply(w, R_list[i]).reshape(T,1),vf_list[i][:-1,:]), axis=0)
         sum_w_M += np.sum(np.multiply(M_list[i], w.reshape(T,1,1)), axis=0)
     return sum_w_M,sum_w_RS
+    # L = np.dot(sum_w_M/n,theta)+sum_w_RS/n
+    # return np.dot(L.T,L)+l*np.dot(theta.T,theta)
 
-def theta_opt(beta, theta0,policy, M_list, A_list, S_list, R_list, vf_list, Mu_list,eps=0,l=0.05):
+def theta_opt(beta,policy, M_list, A_list, S_list, R_list, vf_list, Mu_list,eps=0,l=0.05):
     beta = beta.reshape((2,))
+    # objective = lambda theta: obj_func(beta, theta, policy, M_list, A_list, S_list,R_list, vf_list, Mu_list, eps,l)
+    # opt = optim.minimize(objective, x0=theta0, method='BFGS')  
+    # return opt.x
     sum_w_M, sum_w_RS = obj_func(beta, policy,M_list, A_list, S_list,R_list, vf_list, Mu_list,eps)
     nV = len(sum_w_RS)
     LU = la.lu_factor(np.dot(sum_w_M,sum_w_M.T) + l*np.eye(nV)) 
     return la.lu_solve(LU, -np.dot(sum_w_M.T,sum_w_RS))
 
 
-def Vpi(beta,theta0, policy, M_list, A_list, S_list, R_list, vf_list, Mu_list,eps=0,l=0.1):
+def Vpi(beta, policy, M_list, A_list, S_list, R_list, vf_list, Mu_list,eps=0,l=0.05):
     '''
     Input:
         vf_list: value features (psi): n*T*nV
@@ -131,17 +136,17 @@ def Vpi(beta,theta0, policy, M_list, A_list, S_list, R_list, vf_list, Mu_list,ep
     '''
     print(beta)
     beta = beta.reshape((2,))
-    theta_hat = theta_opt(beta, theta0, policy, M_list, A_list, S_list, R_list, vf_list, Mu_list,eps,l)
+    theta_hat = theta_opt(beta, policy, M_list, A_list, S_list, R_list, vf_list, Mu_list,eps,l)
     print(theta_hat)
     v_list = np.dot(vf_list,theta_hat)
     return -np.mean(v_list)
 
-def beta_opt(beta0,theta0, policy, M_list, A_list, S_list,R_list, vf_list, Mu_list, eps=0,l=0.1):
+def beta_opt(beta0,policy, M_list, A_list, S_list,R_list, vf_list, Mu_list, eps=0,l=0.05):
     '''
     Optimizes policy value over class of softmax policies indexed by beta. 
     Dictionary {'betaHat':estimate of beta, 'thetaHat':estimate of theta, 'objective':objective function (of policy parameters)}
     '''
-    objective = lambda beta: Vpi(beta, theta0, policy, M_list, A_list, S_list, R_list, vf_list, Mu_list,eps,l)
+    objective = lambda beta: Vpi(beta, policy, M_list, A_list, S_list, R_list, vf_list, Mu_list,eps,l)
     betaOpt = optim.minimize(objective, x0=beta0, method='BFGS')
-    thetaOpt = theta_opt(betaOpt.x,theta0, policy, M_list, A_list, S_list, R_list, vf_list, Mu_list,eps,l)
+    thetaOpt = theta_opt(betaOpt.x,policy, M_list, A_list, S_list, R_list, vf_list, Mu_list,eps,l)
     return {'betaHat':betaOpt.x, 'thetaHat':thetaOpt}
