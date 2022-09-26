@@ -115,7 +115,7 @@ def obj_func(beta, policy, M_list, A_list, S_list,R_list, vf_list, Mu_list, eps=
 
 def theta_opt(beta, theta0,policy, M_list, A_list, S_list, R_list, vf_list, Mu_list,eps=0,l=0.05):
     beta = beta.reshape((2,))
-    sum_w_M, sum_w_RS = obj_func(beta, theta0, policy,M_list, A_list, S_list,R_list, vf_list, Mu_list,eps)
+    sum_w_M, sum_w_RS = obj_func(beta, policy,M_list, A_list, S_list,R_list, vf_list, Mu_list,eps)
     nV = len(sum_w_RS)
     LU = la.lu_factor(np.dot(sum_w_M,sum_w_M.T) + l*np.eye(nV)) 
     return la.lu_solve(LU, -np.dot(sum_w_M.T,sum_w_RS))
