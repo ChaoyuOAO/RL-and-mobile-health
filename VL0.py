@@ -84,7 +84,7 @@ def get_M(vf,gamma=0.9):
     return M0
 
 
-def obj_func(beta, theta, policy, M_list, A_list, S_list,R_list, vf_list, Mu_list, eps=0,l=0.05):
+def obj_func(beta, policy, M_list, A_list, S_list,R_list, vf_list, Mu_list, eps=0,l=0.1):
     '''
     Input:
         beta: nA*nS vector
@@ -95,36 +95,36 @@ def obj_func(beta, theta, policy, M_list, A_list, S_list,R_list, vf_list, Mu_lis
         vf_list: n*T*nV: value feature list
         Mu_list: n*T*nS: known randomization probability
     ------------------------------------------
+    Output:
         sum_w_M : sum_T pi/mu * Mt (nV x nV-size array) 
         sum_w_RS : sum_t pi/mu reward * psi(t) (nV-size array)
     --------------------------------------------
-    Output:
-        objective function in R
     '''
     beta = beta.reshape((2,))
     n,T,_ = A_list.shape
     nV = vf_list.shape[2]
     sum_w_RS = np.zeros(nV) 
     sum_w_M = np.zeros((nV,nV))
+    prob = policy(A_list,S_list,beta,eps)
     for i in range(n):
-        w = policy(A_list,S_list,beta,eps)[i]/Mu_list[i]
+        w = prob[i]/Mu_list[i]
         ## pi/mu for each time
         sum_w_RS += np.sum(np.multiply(np.multiply(w, R_list[i]).reshape(T,1),vf_list[i][:-1,:]), axis=0)
         sum_w_M += np.sum(np.multiply(M_list[i], w.reshape(T,1,1)), axis=0)
-    L = np.dot(sum_w_M/n,theta)+sum_w_RS/n
-    return np.dot(L.T,L)+l*np.dot(theta.T,theta)
+    return sum_w_M,sum_w_RS
 
 def theta_opt(beta, theta0,policy, M_list, A_list, S_list, R_list, vf_list, Mu_list,eps=0,l=0.05):
     beta = beta.reshape((2,))
-    objective = lambda theta: obj_func(beta, theta, policy, M_list, A_list, S_list,R_list, vf_list, Mu_list, eps,l)
-    opt = optim.minimize(objective, x0=theta0, method='BFGS')  
-    return opt.x
+    sum_w_M, sum_w_RS = obj_func(beta, theta0, policy,M_list, A_list, S_list,R_list, vf_list, Mu_list,eps)
+    nV = len(sum_w_RS)
+    LU = la.lu_factor(np.dot(sum_w_M,sum_w_M.T) + l*np.eye(nV)) 
+    return la.lu_solve(LU, -np.dot(sum_w_M.T,sum_w_RS))
 
 
-def Vpi(beta,theta0, policy, M_list, A_list, S_list, R_list, vf_list, Mu_list,eps=0,l=0.05):
+def Vpi(beta,theta0, policy, M_list, A_list, S_list, R_list, vf_list, Mu_list,eps=0,l=0.1):
     '''
     Input:
-        fv_list: value features (psi): n*T*nV
+        vf_list: value features (psi): n*T*nV
         theta: parameters for value: nV
     Output:
         value function: n*T
@@ -133,13 +133,10 @@ def Vpi(beta,theta0, policy, M_list, A_list, S_list, R_list, vf_list, Mu_list,ep
     beta = beta.reshape((2,))
     theta_hat = theta_opt(beta, theta0, policy, M_list, A_list, S_list, R_list, vf_list, Mu_list,eps,l)
     print(theta_hat)
-    n,T,_ = vf_list.shape
-    v_list = np.zeros((n,T))
-    for i in range(n):
-        v_list[i] = np.dot(vf_list[i],theta_hat)
+    v_list = np.dot(vf_list,theta_hat)
     return -np.mean(v_list)
 
-def beta_opt(beta0,theta0, policy, M_list, A_list, S_list,R_list, vf_list, Mu_list, eps=0,l=0.05):
+def beta_opt(beta0,theta0, policy, M_list, A_list, S_list,R_list, vf_list, Mu_list, eps=0,l=0.1):
     '''
     Optimizes policy value over class of softmax policies indexed by beta. 
     Dictionary {'betaHat':estimate of beta, 'thetaHat':estimate of theta, 'objective':objective function (of policy parameters)}
