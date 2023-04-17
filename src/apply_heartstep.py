@@ -15,7 +15,7 @@ from matplotlib import pyplot as plt
 import matplotlib.colors as clr
 import seaborn as sns
 
-data = pd.read_csv("D:/dingchaoyu_study/UM/dcy/M2health/SAVE/src/HS_MRT_example_v2.csv")
+data = pd.read_csv(".../src/HS_MRT_example_v2.csv")
 action0 = data[["id", "MRT_action"]]
 policy0 = data[["id", "MRT_probs"]]
 reward0 = data[["id", "MRT_reward"]]
