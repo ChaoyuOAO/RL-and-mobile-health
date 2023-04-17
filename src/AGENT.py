@@ -1,3 +1,7 @@
+'''
+Addapted from https://github.com/shengzhang37/SAVE
+'''
+
 from utility import *
 import operator
 from itertools import product
